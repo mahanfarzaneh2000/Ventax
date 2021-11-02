@@ -12,6 +12,9 @@ insert_final_newline = true
 indent_style = space
 indent_size = 4
 
+[*.ve]
+end_of_line = unset
+
 [*.rs]
 end_of_line = crlf
 indent_style = tab
