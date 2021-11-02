@@ -2,16 +2,17 @@ use std::io::{ BufRead, BufReader};
 use std::env;
 use std::fs::File;
 
-// enum IntrinsicTypes {
-// 	HALT,NOP
-// }
+#[derive(Debug)]
+enum TokenTypes {
+	HALT,NOP
+}
 
-// struct Intrinsic {
-// 	token_type:IntrinsicTypes,
-// 	literal:u8,
-// 	line:u32,
-// 	col:u32
-// }
+struct Token {
+	token_type:TokenTypes,
+	literal:String,
+	line:u32,
+	col:u32
+}
 
 fn main() {
   let args:Vec<_> = env::args().collect();
@@ -32,6 +33,7 @@ fn main() {
 
 fn scan_code_file(file_path:&str) -> u8 {
 	let mut f = BufReader::new(File::open(file_path).expect("ERROR: File not Found"));
+	let mut token_stack = Vec::<Token>::new();
 
 	let mut buf = Vec::<u8>::new();
 	let mut col_number : u32 = 1;
@@ -44,13 +46,17 @@ fn scan_code_file(file_path:&str) -> u8 {
 			if col_number == s.len() as u32{
 				word_buffer.push(c);
 				if word_buffer.len() > 0 {
-					println!("word: {},line: {},col: {}",word_buffer.trim_end(),line_number,col_number-(word_buffer.len() as u32)+1);
+					//println!("word: {},line: {},col: {}",word_buffer.trim_end(),line_number,col_number-(word_buffer.len() as u32)+1);
+					let token = create_token(word_buffer.trim_end(),line_number,col_number-(word_buffer.len() as u32)+1);
+					token_stack.push(token);
 				}
 				word_buffer.clear();
 			}
 			else if  c == ' ' || c == '\t' || c=='\n'{
 				if word_buffer.len() > 0 {
-					println!("word: {},line: {},col: {}",word_buffer,line_number,col_number-(word_buffer.len() as u32));
+					//println!("word: {},line: {},col: {}",word_buffer,line_number,col_number-(word_buffer.len() as u32));
+					let token = create_token(word_buffer.trim_end(),line_number,col_number-(word_buffer.len() as u32));
+					token_stack.push(token);
 				}
 				word_buffer.clear();
 			}
@@ -65,5 +71,26 @@ fn scan_code_file(file_path:&str) -> u8 {
 		buf = s.into_bytes();
 		buf.clear();
 	}
+	for token in token_stack{
+		println!("type:{:?}, literal:{}, line:{}, col:{}",token.token_type,token.literal,token.line,token.col);
+	}
 	0
+}
+
+fn create_token(word: &str, line: u32, col: u32) -> Token {
+	if word == "halt" {
+		Token {
+			token_type:TokenTypes::HALT,
+			literal:word.to_string(),
+			line,
+			col,
+		}
+	}else {
+		Token {
+			token_type:TokenTypes::NOP,
+			literal:word.to_string(),
+			line,
+			col
+		}
+	}
 }
