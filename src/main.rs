@@ -2,6 +2,7 @@ use std::io::{ BufRead, BufReader};
 use std::env;
 use std::fs::File;
 
+
 // enum TokenType {
 // 	STRING,PRINT
 // }
@@ -52,7 +53,7 @@ fn scan_code_file(file_path:&str) {
 					panic!("ERROR: Unterminated literal token");
 				}
 				if buffer.len() > 0 {
-					println!("#{}#" , buffer);
+					println!("{} -> {}:{}:{}" , buffer,file_path,line_number,col_number - buffer.len() as u32);
 				}
 				buffer.clear();
 			} else if  c == ' ' || c == '\t' || c == '\n' || c == '\r' {
@@ -60,26 +61,36 @@ fn scan_code_file(file_path:&str) {
 					buffer.push(c);
 				}else{
 					if buffer.len() > 0 {
-						println!("#{}#", buffer);
+						println!("{} -> {}:{}:{}" , buffer,file_path,line_number,col_number - buffer.len() as u32);
 					}
 					buffer.clear();
 				}
 			} else if c == '"'  {
 				if literal_token_buffer == LiteralToken::NONE {
 					literal_token_buffer = LiteralToken::STRING;
+					// ALERT
+					buffer.push(c);
 				}else if literal_token_buffer == LiteralToken::STRING {
 					literal_token_buffer = LiteralToken::NONE;
-					println!("\"{}\"",buffer);
+					// ALERT
+					buffer.push(c);
+					// col number is not incremented after the closing quote pushed to buffer
+					println!("{} -> {}:{}:{}" , buffer,file_path,line_number,col_number + 1 - buffer.len() as u32);
 					buffer.clear();
 				}else{
 					buffer.push(c);
 				}
 			} else if c == '\''{
 				if literal_token_buffer == LiteralToken::NONE {
+					// starting ['] is also included in the literal token
+					buffer.push(c);
 					literal_token_buffer = LiteralToken::CHAR;
 				}else if literal_token_buffer == LiteralToken::CHAR {
 					literal_token_buffer = LiteralToken::NONE;
-					println!("'{}'",buffer);
+					// eding ['] is also included in the literal token
+					buffer.push(c);
+					// col number is not incremented after the closing quote pushed to buffer
+					println!("{} -> {}:{}:{}" , buffer,file_path,line_number,col_number + 1 - buffer.len() as u32);
 					buffer.clear();
 				}else{
 					buffer.push(c);
@@ -89,7 +100,9 @@ fn scan_code_file(file_path:&str) {
 			}
 			col_number +=1;
 		}
-		println!("#{}#",buffer);
+		if buffer.len() > 0 {
+			println!("{} -> {}:{}:{}" , buffer,file_path,line_number,col_number - buffer.len() as u32);
+		}
 		buffer.clear();
 		line_number += 1;
 		col_number = 1;
@@ -97,5 +110,4 @@ fn scan_code_file(file_path:&str) {
 		buf = s.into_bytes();
 		buf.clear();
 	}
-	println!("{}:{}", line_number, col_number);
 }
