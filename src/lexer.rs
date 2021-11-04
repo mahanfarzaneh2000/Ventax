@@ -9,14 +9,12 @@ use std::fs::File;
 
 #[derive(Debug, PartialEq)]
 enum TokenType {
-	STRING,CHAR,PRINT,NONE
-}
-
-// TODO: REMOVE THIS
-#[derive(Debug)]
-#[derive(PartialEq)]
-pub enum LiteralToken{
-	STRING,CHAR,NONE
+	// Literal Tokens
+	STRING,CHAR,NONE,INTEGER,
+	// Keyword Tokens
+	PRINT,
+	// Operator Tokens
+	PLUS
 }
 
 #[derive(Debug)]
@@ -46,13 +44,13 @@ pub fn scan_code_file(file_path:&str) {
 		// Collects multi character lexemes
 		let mut buffer = String::new();
 		// Checks for literals
-		let mut literal_token_buffer = LiteralToken::NONE;
+		let mut literal_token_buffer = TokenType::NONE;
 
 		for c in s.chars() {
 			if c == '\n'{
 				// panics if literal_token_buffer is not NONE
 				// or like string literal includes 2 lines
-				if literal_token_buffer != LiteralToken::NONE {
+				if literal_token_buffer != TokenType::NONE {
 					panic!("ERROR: Unterminated literal token");
 				}
 				// prints every thing that is in the buffer before the new line
@@ -62,7 +60,7 @@ pub fn scan_code_file(file_path:&str) {
 				buffer.clear();
 			} else if  c == ' ' || c == '\t' || c == '\n' || c == '\r' {
 				// checks if literal_token_buffer is not NONE include space inside the buffer
-				if literal_token_buffer != LiteralToken::NONE {
+				if literal_token_buffer != TokenType::NONE {
 					buffer.push(c);
 				}else{
 					// prints every thing that is in the buffer before space or (tab or new line or carriage return)
@@ -73,19 +71,19 @@ pub fn scan_code_file(file_path:&str) {
 				}
 			} else if c == '"'  {
 				// if there is no opened double quote
-				if literal_token_buffer == LiteralToken::NONE {
+				if literal_token_buffer == TokenType::NONE {
 					// checks if literal_token_buffer is not NONE tokenize space inside the buffer
 					if buffer.len() > 0 {
 						create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
 					}
 					buffer.clear();
 					// sets literal_token_buffer to STRING so that it can be closed later
-					literal_token_buffer = LiteralToken::STRING;
+					literal_token_buffer = TokenType::STRING;
 					// include double quote in the buffer
 					buffer.push(c);
-				}else if literal_token_buffer == LiteralToken::STRING {
+				}else if literal_token_buffer == TokenType::STRING {
 					// if double quote is closed make literal_token_buffer NONE
-					literal_token_buffer = LiteralToken::NONE;
+					literal_token_buffer = TokenType::NONE;
 					// include double quote in the buffer
 					buffer.push(c);
 					// col number is not incremented after the closing quote pushed to buffer
@@ -98,18 +96,18 @@ pub fn scan_code_file(file_path:&str) {
 				}
 			} else if c == '\''{
 				// if there is no opened quote
-				if literal_token_buffer == LiteralToken::NONE {
+				if literal_token_buffer == TokenType::NONE {
 					// checks if literal_token_buffer is not NONE tokenize space inside the buffer
 					if buffer.len() > 0 {
 						create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
 					}
 					buffer.clear();
-					literal_token_buffer = LiteralToken::CHAR;
+					literal_token_buffer = TokenType::CHAR;
 					// starting ['] is also included in the literal token
 					buffer.push(c);
-				}else if literal_token_buffer == LiteralToken::CHAR {
+				}else if literal_token_buffer == TokenType::CHAR {
 					// if quote is closed make literal_token_buffer NONE
-					literal_token_buffer = LiteralToken::NONE;
+					literal_token_buffer = TokenType::NONE;
 					// ending ['] is also included in the literal token
 					buffer.push(c);
 					// col number is not incremented after the closing quote pushed to buffer
@@ -119,6 +117,18 @@ pub fn scan_code_file(file_path:&str) {
 					buffer.clear();
 				}else{
 					buffer.push(c);
+				}
+			}else if c == '+'{
+				// checks if literal_token_buffer is not NONE tokenize space inside the buffer
+				if literal_token_buffer != TokenType::NONE {
+					buffer.push(c);
+				}else{
+					// prints every thing that is in the buffer before +
+					if buffer.len() > 0 {
+						create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
+					}
+					buffer.clear();
+					create_token(&("+".to_string()), line_number, col_number, Some(TokenType::PLUS));
 				}
 			}else{
 				buffer.push(c);
@@ -157,6 +167,8 @@ fn create_token(phrase: &String, line_number: u32, col_number: u32,known_token:O
 		if phrase.len() > 0 {
 			if phrase.starts_with("print") {
 				token.token_type = TokenType::PRINT;
+			}else if phrase.to_string().chars().all(char::is_numeric){
+				token.token_type = TokenType::INTEGER;
 			}
 		}
 	}
