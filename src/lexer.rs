@@ -5,15 +5,15 @@
 */
 use std::io::{ BufRead, BufReader};
 use std::fs::File;
+use regex::Regex;
 
 #[derive(Debug, PartialEq)]
 enum TokenType {
 	NL,WS,
-	STRING,CHAR,NONE,INTEGER,
+	STRING,CHAR,NONE,
 	LPAREN,RPAREN,LBRACKET,RBRACKET,
 	LBRACE,RBRACE,
 	COMMA,SEMICOLON,
-	PRINT,
 	POW,MOD,
 	ASSIGN,
 	ADDRESS,
@@ -44,8 +44,9 @@ enum TokenType {
 	SCOPE,
 	UNSAFE,
 	COMMENT,
-	COMMENTOPEN,
-	COMMENTCLOSE,
+
+	IDENTIFIER,
+	NUMBER,
 }
 
 #[derive(Debug)]
@@ -82,12 +83,17 @@ pub fn scan_code_file(file_path:&str) {
 
 		for cursor in s.chars() {
 			// New line
-			if cursor == '\n'{
-				if literal_token_buffer != TokenType::NONE{
+			if cursor == '\r'{
+				// Ignore
+			}
+			else if cursor == '\n'{
+				if literal_token_buffer == TokenType::STRING || literal_token_buffer == TokenType::CHAR {
 					panic!("ERROR: Unclosed literal {}:{}",col_number,line_number);
+				}else if literal_token_buffer == TokenType::COMMENT {
+					literal_token_buffer = TokenType::NONE;
 				}
 				if buffer.len() > 0{
-					validate_buffer();
+					validate_buffer(&buffer,&mut token_stack,line_number,col_number-buffer.len() as u32);
 					buffer.clear();
 				}
 				token_stack.push(Token{token_type:TokenType::NL, literal:"".to_string(), line:line_number, column:col_number});
@@ -99,7 +105,7 @@ pub fn scan_code_file(file_path:&str) {
 					buffer.push(cursor);
 				}else{
 					if buffer.len() > 0{
-						validate_buffer();
+						validate_buffer(&buffer,&mut token_stack,line_number,col_number-buffer.len() as u32);
 						buffer.clear();
 					}
 					token_stack.push(Token{token_type:TokenType::WS, literal:cursor.to_string(), line:line_number, column:col_number});
@@ -110,7 +116,7 @@ pub fn scan_code_file(file_path:&str) {
 			else if cursor == '"' || cursor == '\'' {
 				if literal_token_buffer == TokenType::NONE{
 					if buffer.len() > 0{
-						validate_buffer();
+						validate_buffer(&buffer,&mut token_stack,line_number,col_number-buffer.len() as u32);
 						buffer.clear();
 					}
 					buffer.push(cursor);
@@ -119,18 +125,18 @@ pub fn scan_code_file(file_path:&str) {
 						'\'' => literal_token_buffer = TokenType::CHAR,
 						_ => (),
 					}
-				}else{
+				}else if literal_token_buffer == TokenType::STRING && cursor == '"'{
+          literal_token_buffer = TokenType::NONE;
 					buffer.push(cursor);
-					col_number += 1;
-					match cursor{
-						'"' => {
-							if literal_token_buffer == TokenType::STRING{
-								validate_buffer();
-							}
-						},
-						'\'' => literal_token_buffer = TokenType::CHAR,
-						_ => (),
-					}
+					validate_buffer(&buffer,&mut token_stack,line_number,col_number+1 -buffer.len() as u32);
+					buffer.clear();
+				}else if literal_token_buffer == TokenType::CHAR && cursor == '\''{
+					literal_token_buffer = TokenType::NONE;
+					buffer.push(cursor);
+					validate_buffer(&buffer,&mut token_stack,line_number,col_number+1 -buffer.len() as u32);
+					buffer.clear();
+				}else {
+					buffer.push(cursor);
 				}
 			}
 
@@ -143,7 +149,7 @@ pub fn scan_code_file(file_path:&str) {
 					buffer.push(cursor);
 				}else{
 					if buffer.len() > 0{
-						validate_buffer();
+						validate_buffer(&buffer,&mut token_stack,line_number,col_number-buffer.len() as u32);
 						buffer.clear();
 					}
 					let t = get_single_char_token_type(cursor);
@@ -164,14 +170,18 @@ pub fn scan_code_file(file_path:&str) {
 					buffer.push(cursor);
 				}else{
 					if buffer.len() > 0{
-						validate_buffer();
+						validate_buffer(&buffer,&mut token_stack,line_number,col_number-buffer.len() as u32);
 						buffer.clear();
 					}
 					let last_token : Token;
 					if token_stack.len() > 0{
 						last_token = token_stack.pop().unwrap();
 						if is_part_of_double_char_tokens(&last_token.token_type){
-							token_stack.push(update_token_type(last_token,cursor));
+							let u_token = update_token_type(last_token,cursor);
+							if u_token.token_type == TokenType::COMMENT{
+								literal_token_buffer = TokenType::COMMENT;
+							}
+							token_stack.push(u_token);
 						}else{
 							token_stack.push(last_token);
 							let t = get_single_char_token_type(cursor);
@@ -200,9 +210,10 @@ pub fn scan_code_file(file_path:&str) {
 			col_number +=1;
 		}
 		// For the last line that has no new line at the end will print reminder of buffer
-		//println!("{:?}",token_stack);
+
 		if buffer.len() > 0 {
-			create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
+			validate_buffer(&buffer,&mut token_stack,line_number,col_number-buffer.len() as u32);
+			buffer.clear();
 		}
 		buffer.clear();
 		// increments line number
@@ -213,6 +224,7 @@ pub fn scan_code_file(file_path:&str) {
 		buf = s.into_bytes();
 		buf.clear();
 	}
+	println!("{:?}",token_stack);
 }
 
 fn update_token_type(last_token: Token, cursor: char) -> Token {
@@ -255,10 +267,6 @@ fn update_token_type(last_token: Token, cursor: char) -> Token {
 		new_token.token_type = TokenType::UNSAFE;
 	}else if new_token.literal == "//"{
 		new_token.token_type = TokenType::COMMENT;
-	}else if new_token.literal == "/*"{
-		new_token.token_type = TokenType::COMMENTOPEN;
-	}else if new_token.literal == "*/"{
-		new_token.token_type = TokenType::COMMENTCLOSE;
 	}else{
 		panic!("invalid Token {}:{}",last_token.line,last_token.column)
 	}
@@ -269,7 +277,7 @@ fn is_part_of_double_char_tokens(token_type: &TokenType) -> bool {
 	match token_type{
 		TokenType::ASSIGN | TokenType::ADDRESS | TokenType::MINUS | TokenType::PLUS |
 		TokenType::DIVIDE | TokenType::MULTIPLY | TokenType::BIGGER | TokenType::SMALLER |
-		TokenType::COLON | TokenType::PIPE | TokenType::QMARK => true,
+		TokenType::COLON | TokenType::NOT | TokenType::PIPE | TokenType::QMARK => true,
 		_ => false,
 	}
 }
@@ -307,32 +315,53 @@ fn get_single_char_token_type(cursor: char) -> TokenType{
 	 }
 }
 
-fn validate_buffer() {
-}
+// TODO: ADD KEYWORDS
+fn validate_buffer(buffer: &String,token_vec : &mut Vec<Token>,line_number: u32,col_number: u32) {
+	// Regex for identifiers
+	let identifier_regex = Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$").unwrap();
+	// Regex for numbers
+	let number_regex = Regex::new(r"^[0-9]+$").unwrap();
+	// Regex for strings
+	let string_regex = Regex::new(r#"^".*""#).unwrap();
 
-// Create tokens based on collected information when reading the text file
-fn create_token(phrase: &String, line_number: u32, col_number: u32,known_token:Option<TokenType>) -> Token {
+	let char_regex = Regex::new(r"^'.'$").unwrap();
 
-	let mut token = Token{
-		token_type: TokenType::NONE,
-		literal: phrase.to_string(),
-		line: line_number,
-		column: col_number,
+	let mut token = Token {
+		token_type:TokenType::NONE,
+		literal:buffer.clone(),
+		line:line_number,
+		column:col_number
 	};
 
-	// if token is provided by scanner
-	if known_token != None {
-		token.token_type = known_token.unwrap();
-	} else{
-		if phrase.len() > 0 {
-			if phrase.starts_with("print") {
-				token.token_type = TokenType::PRINT;
-			}else if phrase.to_string().chars().all(char::is_numeric){
-				token.token_type = TokenType::INTEGER;
-			}
-		}
+	if identifier_regex.is_match(buffer) {
+		token.token_type = TokenType::IDENTIFIER;
+	}else if number_regex.is_match(buffer) {
+		token.token_type = TokenType::NUMBER;
+	}else if string_regex.is_match(buffer) {
+		token.token_type = TokenType::STRING;
+	}else if char_regex.is_match(buffer) {
+		token.token_type = TokenType::CHAR;
+	}else{
+		panic!("ERROR: Invalid token {}:{}",line_number,col_number);
 	}
 
-	println!("{:?}",token);
-	return token;
+	if token_vec.len() > 0{
+		let last_token = token_vec.last().unwrap();
+		let last_token_type = &last_token.token_type;
+		if *last_token_type == TokenType::COMMENT {
+			token_vec.pop();
+			return;
+		}else if token.token_type == TokenType::NUMBER {
+			match last_token_type{
+				TokenType::MINUS => {
+					token_vec.pop();
+					token.token_type = TokenType::NUMBER;
+					token.literal = format!("-{}",buffer);
+				},
+				_ => (),
+			}
+
+		}
+	}
+	token_vec.push(token);
 }
