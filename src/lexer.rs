@@ -3,18 +3,49 @@
 * scan_code_file function will return a list of tokens
 * the next step is to parse the tokens
 */
-
 use std::io::{ BufRead, BufReader};
 use std::fs::File;
 
 #[derive(Debug, PartialEq)]
 enum TokenType {
-	// Literal Tokens
+	NL,WS,
 	STRING,CHAR,NONE,INTEGER,
-	// Keyword Tokens
+	LPAREN,RPAREN,LBRACKET,RBRACKET,
+	LBRACE,RBRACE,
+	COMMA,SEMICOLON,
 	PRINT,
-	// Operator Tokens
-	PLUS
+	POW,MOD,
+	ASSIGN,
+	ADDRESS,
+	MINUS,
+	PLUS,
+	DIVIDE,
+	MULTIPLY,
+	BIGGER,
+	SMALLER,
+	COLON,
+	PIPE,
+	QMARK,
+
+	DOT,
+	NOT,
+	EQ,
+	NEQ,
+	GEQ,
+	LEQ,
+	DEC,
+	INC,
+	AND,
+	OR,
+	SHL,
+	SHR,
+	ARROW,
+	FATARROW,
+	SCOPE,
+	UNSAFE,
+	COMMENT,
+	COMMENTOPEN,
+	COMMENTCLOSE,
 }
 
 #[derive(Debug)]
@@ -36,6 +67,9 @@ pub fn scan_code_file(file_path:&str) {
 	let mut col_number : u32 = 1;
 	// Collects line number
 	let mut line_number : u32 = 1;
+
+	let mut token_stack = Vec::<Token>::new();
+
 	// Loops through file line by line
 	while f.read_until(b'\n', &mut buf).expect("read_until failed") != 0 {
 		// Transforms bites into string
@@ -46,96 +80,127 @@ pub fn scan_code_file(file_path:&str) {
 		// Checks for literals
 		let mut literal_token_buffer = TokenType::NONE;
 
-		for c in s.chars() {
-			if c == '\n'{
-				// panics if literal_token_buffer is not NONE
-				// or like string literal includes 2 lines
-				if literal_token_buffer != TokenType::NONE {
-					panic!("ERROR: Unterminated literal token");
+		for cursor in s.chars() {
+			// New line
+			if cursor == '\n'{
+				if literal_token_buffer != TokenType::NONE{
+					panic!("ERROR: Unclosed literal {}:{}",col_number,line_number);
 				}
-				// prints every thing that is in the buffer before the new line
-				if buffer.len() > 0 {
-					create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
+				if buffer.len() > 0{
+					validate_buffer();
+					buffer.clear();
 				}
-				buffer.clear();
-			} else if  c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-				// checks if literal_token_buffer is not NONE include space inside the buffer
-				if literal_token_buffer != TokenType::NONE {
-					buffer.push(c);
+				token_stack.push(Token{token_type:TokenType::NL, literal:"".to_string(), line:line_number, column:col_number});
+			}
+
+			// Whitespace
+			else if cursor == ' ' || cursor == '\t' {
+				if literal_token_buffer != TokenType::NONE{
+					buffer.push(cursor);
 				}else{
-					// prints every thing that is in the buffer before space or (tab or new line or carriage return)
-					if buffer.len() > 0 {
-						create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
+					if buffer.len() > 0{
+						validate_buffer();
+						buffer.clear();
 					}
-					buffer.clear();
+					token_stack.push(Token{token_type:TokenType::WS, literal:cursor.to_string(), line:line_number, column:col_number});
 				}
-			} else if c == '"'  {
-				// if there is no opened double quote
-				if literal_token_buffer == TokenType::NONE {
-					// checks if literal_token_buffer is not NONE tokenize space inside the buffer
-					if buffer.len() > 0 {
-						create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
+			}
+
+			// Literal
+			else if cursor == '"' || cursor == '\'' {
+				if literal_token_buffer == TokenType::NONE{
+					if buffer.len() > 0{
+						validate_buffer();
+						buffer.clear();
 					}
-					buffer.clear();
-					// sets literal_token_buffer to STRING so that it can be closed later
-					literal_token_buffer = TokenType::STRING;
-					// include double quote in the buffer
-					buffer.push(c);
-				}else if literal_token_buffer == TokenType::STRING {
-					// if double quote is closed make literal_token_buffer NONE
-					literal_token_buffer = TokenType::NONE;
-					// include double quote in the buffer
-					buffer.push(c);
-					// col number is not incremented after the closing quote pushed to buffer
-					if buffer.len() > 0 {
-						create_token(&buffer,line_number,col_number+1-buffer.len() as u32,Some(TokenType::STRING));
+					buffer.push(cursor);
+					match cursor{
+						'"' => literal_token_buffer = TokenType::STRING,
+						'\'' => literal_token_buffer = TokenType::CHAR,
+						_ => (),
 					}
-					buffer.clear();
 				}else{
-					buffer.push(c);
+					buffer.push(cursor);
+					col_number += 1;
+					match cursor{
+						'"' => {
+							if literal_token_buffer == TokenType::STRING{
+								validate_buffer();
+							}
+						},
+						'\'' => literal_token_buffer = TokenType::CHAR,
+						_ => (),
+					}
 				}
-			} else if c == '\''{
-				// if there is no opened quote
-				if literal_token_buffer == TokenType::NONE {
-					// checks if literal_token_buffer is not NONE tokenize space inside the buffer
-					if buffer.len() > 0 {
-						create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
-					}
-					buffer.clear();
-					literal_token_buffer = TokenType::CHAR;
-					// starting ['] is also included in the literal token
-					buffer.push(c);
-				}else if literal_token_buffer == TokenType::CHAR {
-					// if quote is closed make literal_token_buffer NONE
-					literal_token_buffer = TokenType::NONE;
-					// ending ['] is also included in the literal token
-					buffer.push(c);
-					// col number is not incremented after the closing quote pushed to buffer
-					if buffer.len() > 0 {
-						create_token(&buffer,line_number,col_number+1-buffer.len() as u32,Some(TokenType::CHAR));
-					}
-					buffer.clear();
+			}
+
+			// Single meaning characters
+			else if cursor == '%' || cursor == '^' || cursor == '(' ||
+				cursor == ')' || cursor == '[' || cursor == ']' || cursor == '{' || cursor == '}' ||
+				cursor == ',' || cursor == ';'
+			{
+				if literal_token_buffer != TokenType::NONE{
+					buffer.push(cursor);
 				}else{
-					buffer.push(c);
-				}
-			}else if c == '+'{
-				// checks if literal_token_buffer is not NONE tokenize space inside the buffer
-				if literal_token_buffer != TokenType::NONE {
-					buffer.push(c);
-				}else{
-					// prints every thing that is in the buffer before +
-					if buffer.len() > 0 {
-						create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
+					if buffer.len() > 0{
+						validate_buffer();
+						buffer.clear();
 					}
-					buffer.clear();
-					create_token(&("+".to_string()), line_number, col_number, Some(TokenType::PLUS));
+					let t = get_single_char_token_type(cursor);
+					token_stack.push(Token { token_type: t,
+						literal: cursor.to_string(),
+						line: line_number,
+						column: col_number
+					});
 				}
-			}else{
-				buffer.push(c);
+			}
+
+			// Double meaning characters
+			else if cursor == '=' || cursor == '!' || cursor == '&' || cursor == '-' || cursor == '+' ||
+				cursor == '/' || cursor == '*' || cursor == '<' || cursor == '>' || cursor == ':' ||
+				cursor == '?' || cursor == '|' || cursor == '~' || cursor == '.'
+			{
+				if literal_token_buffer != TokenType::NONE{
+					buffer.push(cursor);
+				}else{
+					if buffer.len() > 0{
+						validate_buffer();
+						buffer.clear();
+					}
+					let last_token : Token;
+					if token_stack.len() > 0{
+						last_token = token_stack.pop().unwrap();
+						if is_part_of_double_char_tokens(&last_token.token_type){
+							token_stack.push(update_token_type(last_token,cursor));
+						}else{
+							token_stack.push(last_token);
+							let t = get_single_char_token_type(cursor);
+							token_stack.push(Token { token_type: t,
+								literal: cursor.to_string(),
+								line: line_number,
+								column: col_number
+							});
+						}
+					}else{
+						let t = get_single_char_token_type(cursor);
+						token_stack.push(Token { token_type: t,
+							literal: cursor.to_string(),
+							line: line_number,
+							column: col_number
+						});
+					}
+
+				}
+			}
+
+			// just Push to Buffer
+			else{
+				buffer.push(cursor);
 			}
 			col_number +=1;
 		}
 		// For the last line that has no new line at the end will print reminder of buffer
+		//println!("{:?}",token_stack);
 		if buffer.len() > 0 {
 			create_token(&buffer,line_number,col_number-buffer.len() as u32,None);
 		}
@@ -148,6 +213,101 @@ pub fn scan_code_file(file_path:&str) {
 		buf = s.into_bytes();
 		buf.clear();
 	}
+}
+
+fn update_token_type(last_token: Token, cursor: char) -> Token {
+	let mut new_token_string = last_token.literal;
+	new_token_string.push(cursor);
+	let mut new_token = Token{
+		token_type: TokenType::NONE,
+		literal: new_token_string,
+		line: last_token.line,
+		column: last_token.column,
+	};
+
+	if new_token.literal == "=="{
+		new_token.token_type = TokenType::EQ;
+	}else if new_token.literal == "!="{
+		new_token.token_type = TokenType::NEQ;
+	}else if new_token.literal == ">="{
+		new_token.token_type = TokenType::GEQ;
+	}else if new_token.literal == "<="{
+		new_token.token_type = TokenType::LEQ;
+	}else if new_token.literal == "--"{
+		new_token.token_type = TokenType::DEC;
+	}else if new_token.literal == "++"{
+		new_token.token_type = TokenType::INC;
+	}else if new_token.literal == "&&"{
+		new_token.token_type = TokenType::AND;
+	}else if new_token.literal == "||"{
+		new_token.token_type = TokenType::OR;
+	}else if new_token.literal == "<<"{
+		new_token.token_type = TokenType::SHL;
+	}else if new_token.literal == ">>"{
+		new_token.token_type = TokenType::SHR;
+	}else if new_token.literal == "->"{
+		new_token.token_type = TokenType::ARROW;
+	}else if new_token.literal == "=>"{
+		new_token.token_type = TokenType::FATARROW;
+	}else if new_token.literal == "::"{
+		new_token.token_type = TokenType::SCOPE;
+	}else if new_token.literal == ":?"{
+		new_token.token_type = TokenType::UNSAFE;
+	}else if new_token.literal == "//"{
+		new_token.token_type = TokenType::COMMENT;
+	}else if new_token.literal == "/*"{
+		new_token.token_type = TokenType::COMMENTOPEN;
+	}else if new_token.literal == "*/"{
+		new_token.token_type = TokenType::COMMENTCLOSE;
+	}else{
+		panic!("invalid Token {}:{}",last_token.line,last_token.column)
+	}
+	new_token
+}
+
+fn is_part_of_double_char_tokens(token_type: &TokenType) -> bool {
+	match token_type{
+		TokenType::ASSIGN | TokenType::ADDRESS | TokenType::MINUS | TokenType::PLUS |
+		TokenType::DIVIDE | TokenType::MULTIPLY | TokenType::BIGGER | TokenType::SMALLER |
+		TokenType::COLON | TokenType::PIPE | TokenType::QMARK => true,
+		_ => false,
+	}
+}
+
+fn get_single_char_token_type(cursor: char) -> TokenType{
+   match cursor{
+		 // always single character tokens
+		'%' => TokenType::MOD,
+		'^' => TokenType::POW,
+		'(' => TokenType::LPAREN,
+		')'	=> TokenType::RPAREN,
+		'['	=> TokenType::LBRACKET,
+		']'	=> TokenType::RBRACKET,
+		'{'	=> TokenType::LBRACE,
+		'}'	=> TokenType::RBRACE,
+		','	=> TokenType::COMMA,
+		';'	=> TokenType::SEMICOLON,
+		'.' => TokenType::DOT,
+		// Can be multiple character tokens
+		'!' => TokenType::NOT,
+		'&' => TokenType::ADDRESS,
+		'=' => TokenType::ASSIGN,
+		'+' => TokenType::PLUS,
+		'-' => TokenType::MINUS,
+		'*' => TokenType::MULTIPLY,
+		'/' => TokenType::DIVIDE,
+		'<' => TokenType::SMALLER,
+		'>' => TokenType::BIGGER,
+		'?' => TokenType::QMARK,
+		'|' => TokenType::PIPE,
+		':' => TokenType::COLON,
+		_ => {
+			panic!("ERROR: Invalid character");
+		},
+	 }
+}
+
+fn validate_buffer() {
 }
 
 // Create tokens based on collected information when reading the text file
