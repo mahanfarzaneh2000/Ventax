@@ -7,7 +7,7 @@ use std::io::{ BufRead, BufReader};
 use std::fs::File;
 use regex::Regex;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq,Clone)]
 enum TokenType {
 	NL,WS,
 	STRING,CHAR,NONE,
@@ -42,11 +42,29 @@ enum TokenType {
 	ARROW,
 	FATARROW,
 	SCOPE,
-	UNSAFE,
 	COMMENT,
 
 	IDENTIFIER,
 	NUMBER,
+
+	IF,
+	ELSE,
+	ELSEIF,
+	WHILE,
+	DO,
+	FOR,
+	RETURN,
+	BREAK,
+	CONTINUE,
+	STRUCT,
+	ENUM,
+	PROC,
+	UNSAFE,
+	IMPORT,
+	LET,
+	CONST,
+	TYPE,
+	PRINT,
 }
 
 #[derive(Debug)]
@@ -224,7 +242,7 @@ pub fn scan_code_file(file_path:&str) {
 		buf = s.into_bytes();
 		buf.clear();
 	}
-	println!("{:?}",token_stack);
+	println!("{:#?}",token_stack);
 }
 
 fn update_token_type(last_token: Token, cursor: char) -> Token {
@@ -315,6 +333,26 @@ fn get_single_char_token_type(cursor: char) -> TokenType{
 	 }
 }
 
+const KEYWORDS: [(&str,TokenType); 17] = [
+	("if",TokenType::IF),
+	("else",TokenType::ELSE),
+	("elseif",TokenType::ELSEIF),
+	("while",TokenType::WHILE),
+	("do",TokenType::DO),
+	("for",TokenType::FOR),
+	("return",TokenType::RETURN),
+	("break",TokenType::BREAK),
+	("continue",TokenType::CONTINUE),
+	("class",TokenType::STRUCT),
+	("enum",TokenType::ENUM),
+	("proc",TokenType::PROC),
+	("import",TokenType::IMPORT),
+	("let",TokenType::LET),
+	("const",TokenType::CONST),
+	("type",TokenType::TYPE),
+	("print",TokenType::PRINT),
+];
+
 // TODO: ADD KEYWORDS
 fn validate_buffer(buffer: &String,token_vec : &mut Vec<Token>,line_number: u32,col_number: u32) {
 	// Regex for identifiers
@@ -333,35 +371,40 @@ fn validate_buffer(buffer: &String,token_vec : &mut Vec<Token>,line_number: u32,
 		column:col_number
 	};
 
-	if identifier_regex.is_match(buffer) {
-		token.token_type = TokenType::IDENTIFIER;
-	}else if number_regex.is_match(buffer) {
-		token.token_type = TokenType::NUMBER;
-	}else if string_regex.is_match(buffer) {
-		token.token_type = TokenType::STRING;
-	}else if char_regex.is_match(buffer) {
-		token.token_type = TokenType::CHAR;
-	}else{
-		panic!("ERROR: Invalid token {}:{}",line_number,col_number);
-	}
-
 	if token_vec.len() > 0{
 		let last_token = token_vec.last().unwrap();
 		let last_token_type = &last_token.token_type;
 		if *last_token_type == TokenType::COMMENT {
 			token_vec.pop();
 			return;
-		}else if token.token_type == TokenType::NUMBER {
-			match last_token_type{
-				TokenType::MINUS => {
-					token_vec.pop();
-					token.token_type = TokenType::NUMBER;
-					token.literal = format!("-{}",buffer);
-				},
-				_ => (),
-			}
-
 		}
 	}
+
+	let mut found = false;
+	for (keyword,token_type) in KEYWORDS.iter() {
+		if keyword == buffer {
+			token.token_type = token_type.clone();
+			found = true;
+			break;
+		}
+	}
+
+	if !found{
+		if identifier_regex.is_match(buffer) {
+			token.token_type = TokenType::IDENTIFIER;
+		}else if number_regex.is_match(buffer) {
+			token.token_type = TokenType::NUMBER;
+		}else if string_regex.is_match(buffer) {
+			token.token_type = TokenType::STRING;
+		}else if char_regex.is_match(buffer) {
+			token.token_type = TokenType::CHAR;
+		}else{
+			panic!("ERROR: Invalid token {}:{}",line_number,col_number);
+		}
+	}
+
+
+
 	token_vec.push(token);
 }
+
