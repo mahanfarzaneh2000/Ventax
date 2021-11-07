@@ -5,6 +5,7 @@ use std::env;
 use std::fs;
 
 mod parser;
+mod compiler;
 
 fn main() {
   let args:Vec<_> = env::args().collect();
@@ -18,8 +19,11 @@ fn main() {
         .expect("Something went wrong reading the file");
 			// Parse the code and generate the AST
 			let ast = parser::parse(contents.as_str());
-			// TODO: interpret the AST
-			println!("{:?}",ast.unwrap());
+			//println!("{:?}",ast.unwrap());
+
+			// TODO: traverse the AST tree
+			let stack = compiler::Interpreter::new().interpret_program(ast.unwrap().last().unwrap());
+			println!("{:?}",stack);
 		}else{
 			panic!("TODO: read args from user and interpret");
 		}

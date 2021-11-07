@@ -1,4 +1,4 @@
-Program = _{ SOI ~ Expr ~ EOF }
+Program = _{ SOI ~ (Expr ~ NewLine | Expr)+ ~ EOF }
 
 Expr = { UnaryExpr | BinaryExpr }
 
@@ -15,3 +15,5 @@ Int = @{ Operator? ~ ASCII_DIGIT+ }
 WHITESPACE = _{ " " | "\t" }
 
 EOF = _{ EOI | ";" }
+
+NewLine = _{ "\n" | "\r\n" }

@@ -1,7 +1,7 @@
 
 use pest::{self,Parser};
 
-mod ast;
+pub mod ast;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "grammar.pest"]
