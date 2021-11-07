@@ -1,23 +1,25 @@
-use std::env;
+extern crate pest;
+extern crate pest_derive;
 
-//mod lexer;
-//mod parser;
+use std::env;
+use std::fs;
+
+mod parser;
 
 fn main() {
   let args:Vec<_> = env::args().collect();
-  // TODO: let mut has_errors = false;
 
 	let args_len = args.len();
 	if args_len > 1 {
 		if args_len == 2 {
-			//let file_path = &args[1];
-			//lexer::scan_code_file(file_path);
-			// let ast = parser::parse("12".to_string());
-			// let node = ast.last().unwrap();
-			// match node.kind {
-			// 	parser::NodeType::NUMERICLITERAL(value) => println!("{}", value),
-			// 	_ => println!("{:?}", node),
-			// }
+			let filename = &args[1];
+			// Read the code file
+			let contents = fs::read_to_string(filename)
+        .expect("Something went wrong reading the file");
+			// Parse the code and generate the AST
+			let ast = parser::parse(contents.as_str());
+			// TODO: interpret the AST
+			println!("{:?}",ast.unwrap());
 		}else{
 			panic!("TODO: read args from user and interpret");
 		}

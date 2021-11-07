@@ -1,27 +1,87 @@
 
-#[derive(Debug)]
-pub struct Node{
-	pub kind: NodeType,
+use pest::{self,Parser};
+
+mod ast;
+
+#[derive(pest_derive::Parser)]
+#[grammar = "grammar.pest"]
+struct ProgramParser;
+
+// Pars program using pest
+pub fn parse(source: &str) -> std::result::Result<Vec<ast::Node>, pest::error::Error<Rule>> {
+	let mut ast = vec![];
+	let pairs = ProgramParser::parse(Rule::Program, source)?;
+	//println!("{:#?}", pairs);
+	for pair in pairs {
+		if let Rule::Expr = pair.as_rule() {
+			ast.push(build_ast_from_expr(pair));
+		}
+	}
+	// Return the abstract syntax tree
+	Ok(ast)
 }
 
-#[derive(Debug)]
-pub enum NodeType{
-	IDENTIFIER,
-	NUMERICLITERAL(i64),
+// Creates ast node form pest pair
+fn build_ast_from_expr(pair: pest::iterators::Pair<Rule>) -> ast::Node {
+	match pair.as_rule() {
+		Rule::Expr => build_ast_from_expr(pair.into_inner().next().unwrap()),
+		Rule::UnaryExpr => {
+			let mut pair = pair.into_inner();
+			let op = pair.next().unwrap();
+			let child = pair.next().unwrap();
+			let child = build_ast_from_term(child);
+			parse_unary_expr(op, child)
+		}
+		Rule::BinaryExpr => {
+			let mut pair = pair.into_inner();
+			let lhspair = pair.next().unwrap();
+			let lhs = build_ast_from_term(lhspair);
+			let op = pair.next().unwrap();
+			let rhspair = pair.next().unwrap();
+			let rhs = build_ast_from_term(rhspair);
+			parse_binary_expr(op, lhs, rhs)
+		}
+		unknown => panic!("Unknown expr: {:?}", unknown),
+	}
 }
 
-pub fn parse(string:String) -> Vec<Node>{
-	let mut vec = Vec::<Node>::new();
-	vec.push(_program(string));
-	vec
+fn build_ast_from_term(pair: pest::iterators::Pair<Rule>) -> ast::Node {
+	match pair.as_rule() {
+		Rule::Int => {
+			let istr = pair.as_str();
+			let (sign, istr) = match &istr[..1] {
+					"-" => (-1, &istr[1..]),
+					_ => (1, istr),
+			};
+			let int: i32 = istr.parse().unwrap();
+			ast::Node::Int(sign * int)
+		}
+		Rule::Expr => build_ast_from_expr(pair),
+		unknown => panic!("Unknown term: {:?}", unknown),
+	}
 }
 
-fn _program(string:String) -> Node{
-	return _numeric_literal(string);
+fn parse_unary_expr(pair: pest::iterators::Pair<Rule>, child: ast::Node) -> ast::Node {
+	ast::Node::UnaryExpr {
+		op: match pair.as_str() {
+			"+" => ast::Operator::Plus,
+			"-" => ast::Operator::Minus,
+			_ => unreachable!(),
+		},
+			child: Box::new(child),
+	}
 }
 
-fn _numeric_literal(string:String) -> Node{
-	return Node{
-		kind: NodeType::NUMERICLITERAL(string.parse::<i64>().unwrap()),
+fn parse_binary_expr(pair: pest::iterators::Pair<Rule>, lhs: ast::Node, rhs: ast::Node) -> ast::Node {
+	ast::Node::BinaryExpr {
+			op: match pair.as_str() {
+				"+" => ast::Operator::Plus,
+				"-" => ast::Operator::Minus,
+				"*" => ast::Operator::Times,
+				"/" => ast::Operator::Divide,
+				_ => unreachable!(),
+			},
+			lhs: Box::new(lhs),
+			rhs: Box::new(rhs),
 	}
 }
