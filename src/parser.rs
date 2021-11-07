@@ -40,7 +40,13 @@ fn build_ast_from_expr(pair: pest::iterators::Pair<Rule>) -> ast::Node {
 			let rhspair = pair.next().unwrap();
 			let rhs = build_ast_from_term(rhspair);
 			parse_binary_expr(op, lhs, rhs)
-		}
+		},
+		Rule::Print =>{
+			let mut pair = pair.into_inner();
+			let child = pair.next().unwrap();
+			let child = build_ast_from_expr(child);
+			ast::Node::Print(Box::new(child))
+		},
 		unknown => panic!("Unknown expr: {:?}", unknown),
 	}
 }
@@ -57,6 +63,7 @@ fn build_ast_from_term(pair: pest::iterators::Pair<Rule>) -> ast::Node {
 			ast::Node::Int(sign * int)
 		}
 		Rule::Expr => build_ast_from_expr(pair),
+
 		unknown => panic!("Unknown term: {:?}", unknown),
 	}
 }

@@ -18,4 +18,5 @@ pub enum Node {
 		lhs: Box<Node>,
 		rhs: Box<Node>,
 	},
+	Print(Box<Node>),
 }

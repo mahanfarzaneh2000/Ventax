@@ -17,6 +17,10 @@ impl Interpreter {
 	pub fn eval(&self,node:&Node) -> i32{
 		match node {
 			Node::Int(n) => *n,
+			Node::Print(n) =>{
+				println!("{}",self.eval(n));
+				0
+			},
 			Node::UnaryExpr { op, child } => {
 				let child = self.eval(child);
 				match op {

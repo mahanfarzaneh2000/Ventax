@@ -1,6 +1,8 @@
 Program = _{ SOI ~ (Expr ~ NewLine | Expr)+ ~ EOF }
 
-Expr = { UnaryExpr | BinaryExpr }
+Expr = { Print | UnaryExpr | BinaryExpr }
+
+Print = { "print" ~ "(" ~ (UnaryExpr | BinaryExpr) ~ ")" }
 
 Term = _{Int | "(" ~ Expr ~ ")" }
 
