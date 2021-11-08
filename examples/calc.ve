@@ -1,2 +1,4 @@
 print(103 / (-5))
 print(-5)
+print(+2)
+let abc = -1 + 2

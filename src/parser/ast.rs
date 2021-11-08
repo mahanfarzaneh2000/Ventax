@@ -19,4 +19,8 @@ pub enum Node {
 		rhs: Box<Node>,
 	},
 	Print(Box<Node>),
+	Assign {
+		name: String,
+		value: Box<Node>,
+	},
 }

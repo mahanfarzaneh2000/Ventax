@@ -1,15 +1,15 @@
 // Rule of The full program made out of instructions
 Program = _{ SOI ~ (Instruction ~ NewLine | Instruction)+ ~ EOF }
 // Rule of The instructions
-Instruction = { Print | Expr }
+Instruction = { Print | Expr | VariableAssign}
 // Rule of logical operations
 Expr = { UnaryExpr | BinaryExpr }
 // Rule of printing results of expressions
-Print = { "print" ~ "(" ~ (UnaryExpr | BinaryExpr) ~ ")" }
+Print = { "print" ~ "(" ~ Expr ~ ")" }
 // Silent Rule of term include integer and Expression
 Term = _{Int | "(" ~ Expr ~ ")" }
 // Rule of variable assignment
-VarableAssign = { "let" ~ Identifier ~ "=" ~ Term }
+VariableAssign = { "let" ~ Identifier ~ "=" ~ Expr }
 // Rule of unary expression
 UnaryExpr = { Operator ~ Term }
 // Rule of binary expression
@@ -19,7 +19,7 @@ Operator = { "+" | "-" | "*" | "/" }
 // Rule of Integer
 Int = @{ Operator? ~ ASCII_DIGIT+ }
 // Rule of Identifiers
-Identifier = @{ ASCII+ }
+Identifier = @{ ('a'..'z' | 'A'..'Z') ~ ('a'..'z'| 'A'..'Z'| '0'..'9'| "_")+ }
 // Whitespace
 WHITESPACE = _{ " " | "\t" }
 // End of the file

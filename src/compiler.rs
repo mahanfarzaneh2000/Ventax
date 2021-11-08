@@ -1,7 +1,7 @@
 use crate::parser::ast::{Node, Operator};
 
 pub struct Interpreter {
-	stack: Vec<i32>,
+	pub stack: Vec<i32>,
 }
 
 impl Interpreter {
@@ -16,6 +16,10 @@ impl Interpreter {
 
 	pub fn eval(&self,node:&Node) -> i32{
 		match node {
+			Node::Assign{name,value} => {
+				println!("Assign {} = {:?}",name,self.eval(value));
+				0
+			},
 			Node::Int(n) => *n,
 			Node::Print(n) =>{
 				println!("{}",self.eval(n));
@@ -27,7 +31,7 @@ impl Interpreter {
 					Operator::Plus => child,
 					Operator::Minus => -child,
         	Operator::Times => panic!("unsupported operation"),
-        	Operator::Divide => panic!("unsuported operation"),
+        	Operator::Divide => panic!("unsupported operation"),
 				}
 			}
 			Node::BinaryExpr { op, lhs, rhs } => {

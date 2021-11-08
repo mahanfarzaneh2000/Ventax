@@ -19,15 +19,14 @@ fn main() {
         .expect("Something went wrong reading the file");
 			// Parse the code and generate the AST
 			let ast = parser::parse(contents.as_str());
-			// println!("{:?}",&ast);
+			//println!("{:?}",&ast);
 
-			// TODO: traverse the AST tree
 			let mut compiler = compiler::Interpreter::new();
 			for node in ast.unwrap() {
+				//println!("{:?}",node);
 				compiler.interpret_program(&node);
 			}
-			//let _stack = compiler::Interpreter::new().interpret_program(ast.unwrap().last().unwrap());
-			//println!("{:?}",stack);
+			//println!("{:?}",compiler.stack);
 		}else{
 			panic!("TODO: read args from user and interpret");
 		}

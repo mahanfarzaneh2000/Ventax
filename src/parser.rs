@@ -48,6 +48,14 @@ fn build_ast_from_instruction(pair: pest::iterators::Pair<Rule>) -> ast::Node {
 			let child = build_ast_from_expr(child);
 			ast::Node::Print(Box::new(child))
 		},
+		Rule::VariableAssign => {
+			let mut pair = pair.into_inner();
+			let var = pair.next().unwrap();
+			let var = var.as_str();
+			let child = pair.next().unwrap();
+			let child = build_ast_from_expr(child);
+			ast::Node::Assign{ name: var.to_string(), value: Box::new(child) }
+		},
 		unknown => panic!("Unknown expr: {:?}", unknown),
 	}
 }
