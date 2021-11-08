@@ -4,7 +4,7 @@ use pest::{self,Parser};
 pub mod ast;
 
 #[derive(pest_derive::Parser)]
-#[grammar = "grammar.pest"]
+#[grammar = "parser/grammar.pest"]
 struct ProgramParser;
 
 // Pars program using pest

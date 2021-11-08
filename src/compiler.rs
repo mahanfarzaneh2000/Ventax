@@ -9,9 +9,9 @@ impl Interpreter {
 		Interpreter { stack: Vec::new() }
 	}
 
-	pub fn interpret_program(&mut self,node: &Node) -> Vec<i32>{
+	pub fn interpret_program(&mut self,node: &Node){
 		self.stack.push(self.eval(node));
-		self.stack.clone()
+		// self.stack.clone()
 	}
 
 	pub fn eval(&self,node:&Node) -> i32{

@@ -22,7 +22,11 @@ fn main() {
 			// println!("{:?}",&ast);
 
 			// TODO: traverse the AST tree
-			let _stack = compiler::Interpreter::new().interpret_program(ast.unwrap().last().unwrap());
+			let mut compiler = compiler::Interpreter::new();
+			for node in ast.unwrap() {
+				compiler.interpret_program(&node);
+			}
+			//let _stack = compiler::Interpreter::new().interpret_program(ast.unwrap().last().unwrap());
 			//println!("{:?}",stack);
 		}else{
 			panic!("TODO: read args from user and interpret");
