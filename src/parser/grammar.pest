@@ -1,21 +1,28 @@
-Program = _{ SOI ~ (Expr ~ NewLine | Expr)+ ~ EOF }
-
-Expr = { Print | UnaryExpr | BinaryExpr }
-
+// Rule of The full program made out of instructions
+Program = _{ SOI ~ (Instruction ~ NewLine | Instruction)+ ~ EOF }
+// Rule of The instructions
+Instruction = { Print | Expr }
+// Rule of logical operations
+Expr = { UnaryExpr | BinaryExpr }
+// Rule of printing results of expressions
 Print = { "print" ~ "(" ~ (UnaryExpr | BinaryExpr) ~ ")" }
-
+// Silent Rule of term include integer and Expression
 Term = _{Int | "(" ~ Expr ~ ")" }
-
+// Rule of variable assignment
+VarableAssign = { "let" ~ Identifier ~ "=" ~ Term }
+// Rule of unary expression
 UnaryExpr = { Operator ~ Term }
-
+// Rule of binary expression
 BinaryExpr = { Term ~ (Operator ~ Term)* }
-
+// Rule of operators
 Operator = { "+" | "-" | "*" | "/" }
-
+// Rule of Integer
 Int = @{ Operator? ~ ASCII_DIGIT+ }
-
+// Rule of Identifiers
+Identifier = @{ ASCII+ }
+// Whitespace
 WHITESPACE = _{ " " | "\t" }
-
+// End of the file
 EOF = _{ EOI | ";" }
-
+// End of the line
 NewLine = _{ "\n" | "\r\n" }

@@ -13,13 +13,45 @@ pub fn parse(source: &str) -> std::result::Result<Vec<ast::Node>, pest::error::E
 	let pairs = ProgramParser::parse(Rule::Program, source)?;
 	//println!("{:#?}", pairs);
 	for pair in pairs {
-		if let Rule::Expr = pair.as_rule() {
-			ast.push(build_ast_from_expr(pair));
+		if let Rule::Instruction = pair.as_rule() {
+			//ast.push(build_ast_from_expr(pair));
+			ast.push(build_ast_from_instruction(pair));
 		}
 	}
 	// Return the abstract syntax tree
 	Ok(ast)
 }
+
+fn build_ast_from_instruction(pair: pest::iterators::Pair<Rule>) -> ast::Node {
+	match pair.as_rule() {
+		Rule::Instruction => build_ast_from_instruction(pair.into_inner().next().unwrap()),
+		Rule::Expr => build_ast_from_expr(pair.into_inner().next().unwrap()),
+		Rule::UnaryExpr => {
+			let mut pair = pair.into_inner();
+			let op = pair.next().unwrap();
+			let child = pair.next().unwrap();
+			let child = build_ast_from_term(child);
+			parse_unary_expr(op, child)
+		}
+		Rule::BinaryExpr => {
+			let mut pair = pair.into_inner();
+			let lhspair = pair.next().unwrap();
+			let lhs = build_ast_from_term(lhspair);
+			let op = pair.next().unwrap();
+			let rhspair = pair.next().unwrap();
+			let rhs = build_ast_from_term(rhspair);
+			parse_binary_expr(op, lhs, rhs)
+		},
+		Rule::Print =>{
+			let mut pair = pair.into_inner();
+			let child = pair.next().unwrap();
+			let child = build_ast_from_expr(child);
+			ast::Node::Print(Box::new(child))
+		},
+		unknown => panic!("Unknown expr: {:?}", unknown),
+	}
+}
+
 
 // Creates ast node form pest pair
 fn build_ast_from_expr(pair: pest::iterators::Pair<Rule>) -> ast::Node {
