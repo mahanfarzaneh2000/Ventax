@@ -31,6 +31,7 @@ fn main() {
 					compiler.interpret_program(&node);
 				}
 				//println!("{:?}",compiler.stack);
+				//println!("{:?}",compiler.variables);
 			}
 		}if args_len == 3{
 			let option = &args[1];

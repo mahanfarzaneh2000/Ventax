@@ -1,23 +1,48 @@
 use crate::parser::ast::{Node, Operator};
+use std::collections::HashMap;
 
 pub struct Interpreter {
 	pub stack: Vec<i32>,
+	pub variables: HashMap<String, i32>,
 }
 
 impl Interpreter {
 	pub fn new() -> Interpreter {
-		Interpreter { stack: Vec::new() }
+		Interpreter { stack: Vec::new() , variables: HashMap::new() }
 	}
 
 	pub fn interpret_program(&mut self,node: &Node){
-		self.stack.push(self.eval(node));
+		let evaled_node = self.eval(node);
+		self.stack.push(evaled_node);
 		// self.stack.clone()
 	}
 
-	pub fn eval(&self,node:&Node) -> i32{
+	pub fn eval(&mut self,node:&Node) -> i32{
 		match node {
-			Node::Assign{name,value} => {
-				println!("Assign {} = {:?}",name,self.eval(value));
+			Node::Declaration{name,value} => {
+				let liteal_value = self.eval(value);
+				self.variables.insert(name.clone(),liteal_value);
+				// println!("Define {} = {:?}",name,self.eval(value));
+				0
+			},
+			Node::Identifier(name) => {
+				if self.variables.contains_key(name) {
+					let value = self.variables.get(name).unwrap().clone();
+					return value
+				}else{
+					println!("Variable {} not found in this scope",name);
+				}
+				//println!("Assign {} = {:?}",name,self.eval(value));
+				0
+			},
+			Node::Assignment{name,value} => {
+				let liteal_value = self.eval(value);
+				if self.variables.contains_key(name) {
+					self.variables.insert(name.clone(),liteal_value);
+				}else{
+					println!("Variable {} not found in this scope",name);
+				}
+				//println!("Assign {} = {:?}",name,self.eval(value));
 				0
 			},
 			Node::Int(n) => *n,

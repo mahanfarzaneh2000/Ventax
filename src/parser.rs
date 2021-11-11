@@ -45,16 +45,24 @@ fn build_ast_from_instruction(pair: pest::iterators::Pair<Rule>) -> ast::Node {
 		Rule::Print =>{
 			let mut pair = pair.into_inner();
 			let child = pair.next().unwrap();
-			let child = build_ast_from_expr(child);
+			let child = build_ast_from_term(child);
 			ast::Node::Print(Box::new(child))
 		},
-		Rule::VariableAssign => {
+		Rule::VariableDeclaration => {
 			let mut pair = pair.into_inner();
 			let var = pair.next().unwrap();
 			let var = var.as_str();
 			let child = pair.next().unwrap();
 			let child = build_ast_from_expr(child);
-			ast::Node::Assign{ name: var.to_string(), value: Box::new(child) }
+			ast::Node::Declaration{ name: var.to_string(), value: Box::new(child) }
+		},
+		Rule::VariableAssignment => {
+			let mut pair = pair.into_inner();
+			let var = pair.next().unwrap();
+			let var = var.as_str();
+			let child = pair.next().unwrap();
+			let child = build_ast_from_expr(child);
+			ast::Node::Assignment{ name: var.to_string(), value: Box::new(child) }
 		},
 		unknown => panic!("Unknown expr: {:?}", unknown),
 	}
@@ -87,6 +95,10 @@ fn build_ast_from_expr(pair: pest::iterators::Pair<Rule>) -> ast::Node {
 			let child = build_ast_from_expr(child);
 			ast::Node::Print(Box::new(child))
 		},
+		Rule::Identifier => {
+			let var = pair.as_str();
+			ast::Node::Identifier(var.to_string())
+		}
 		unknown => panic!("Unknown expr: {:?}", unknown),
 	}
 }
@@ -103,7 +115,10 @@ fn build_ast_from_term(pair: pest::iterators::Pair<Rule>) -> ast::Node {
 			ast::Node::Int(sign * int)
 		}
 		Rule::Expr => build_ast_from_expr(pair),
-
+		Rule::Identifier => {
+			let var = pair.as_str();
+			ast::Node::Identifier(var.to_string())
+		}
 		unknown => panic!("Unknown term: {:?}", unknown),
 	}
 }

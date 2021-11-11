@@ -1,15 +1,17 @@
 // Rule of The full program made out of instructions
 Program = _{ SOI ~ (Instruction ~ NewLine | Instruction)+ ~ EOF }
 // Rule of The instructions
-Instruction = { Print | Expr | VariableAssign}
+Instruction = { Print | Expr | VariableDeclaration | VariableAssignment}
 // Rule of logical operations
 Expr = { UnaryExpr | BinaryExpr }
 // Rule of printing results of expressions
-Print = { "print" ~ "(" ~ Expr ~ ")" }
+Print = { "print" ~ "(" ~ (Expr | Identifier) ~ ")" }
 // Silent Rule of term include integer and Expression
 Term = _{Int | "(" ~ Expr ~ ")" }
-// Rule of variable assignment
-VariableAssign = { "let" ~ Identifier ~ "=" ~ Expr }
+// Rule of variable Definment
+VariableDeclaration = { "let" ~ Identifier ~ "=" ~ Expr }
+// Rule of Assignment
+VariableAssignment = { Identifier ~ "=" ~ Expr }
 // Rule of unary expression
 UnaryExpr = { Operator ~ Term }
 // Rule of binary expression

@@ -19,8 +19,13 @@ pub enum Node {
 		rhs: Box<Node>,
 	},
 	Print(Box<Node>),
-	Assign {
+	Declaration {
 		name: String,
 		value: Box<Node>,
 	},
+	Assignment {
+		name: String,
+		value: Box<Node>,
+	},
+	Identifier(String),
 }
